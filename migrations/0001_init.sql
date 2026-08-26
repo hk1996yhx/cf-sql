@@ -1,0 +1,2 @@
+-- This project does not impose an application schema.
+-- Add your own D1 tables here or run SQL from the console with the write password.

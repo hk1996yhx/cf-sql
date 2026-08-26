@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="description" content="Cloudflare D1 SQL 可视化控制台" />
+    <title>CF SQL · D1 控制台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <section id="login-screen" class="login-screen">
+      <div class="login-card">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="brand-mark-core"></span>
+          <span class="brand-mark-orbit orbit-one"></span>
+          <span class="brand-mark-orbit orbit-two"></span>
+        </div>
+        <p class="eyebrow">PRIVATE DATA PLANE</p>
+        <h1>进入你的<br /><span>D1 控制台</span></h1>
+        <p class="login-description">
+          用访问密码连接 Cloudflare D1。普通密码可完成记录 CRUD，admin 密码可执行删表等结构操作。
+        </p>
+
+        <form id="login-form" class="login-form">
+          <label for="password-input">访问密码</label>
+          <div class="password-input-wrap">
+            <input id="password-input" name="password" type="password" autocomplete="current-password" placeholder="输入你的访问密码" required />
+            <button id="toggle-password" class="icon-button" type="button" aria-label="显示密码" title="显示密码">
+              <svg class="icon icon-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.4-5.2 9.5-5.2 9.5 5.2 9.5 5.2-3.4 5.2-9.5 5.2S2.5 12 2.5 12Z" />
+                <circle cx="12" cy="12" r="2.7" />
+              </svg>
+            </button>
+          </div>
+          <button id="login-button" class="button button-primary button-large" type="submit">
+            <span id="login-label">进入控制台</span>
+            <span id="login-spinner" class="spinner" hidden></span>
+          </button>
+          <p id="login-error" class="form-error" role="alert" hidden></p>
+        </form>
+
+        <div class="login-note">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 4.8 6.2v5.1c0 4.3 3 8.2 7.2 9.7 4.2-1.5 7.2-5.4 7.2-9.7V6.2L12 3Z" />
+            <path d="m8.8 12 2.1 2.1 4.4-4.5" />
+          </svg>
+          <span>凭据仅用于当前会话，令牌会在浏览器会话结束后清除。</span>
+        </div>
+      </div>
+      <p class="login-footer">WORKERS + D1 <span>·</span> SIMPLE. FAST. PRIVATE.</p>
+    </section>
+
+    <section id="console-screen" class="console-screen" hidden>
+      <header class="topbar">
+        <div class="topbar-brand">
+          <div class="mini-mark" aria-hidden="true"><span></span></div>
+          <span>CF SQL</span>
+          <span class="topbar-divider"></span>
+          <span class="topbar-product">D1 CONTROL ROOM</span>
+        </div>
+        <div class="topbar-actions">
+          <div class="secure-indicator"><span class="status-dot"></span><span>SESSION ACTIVE</span></div>
+          <button id="theme-toggle" class="toolbar-button" type="button" aria-label="切换主题" title="切换主题">
+            <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.5" />
+              <path d="M12 2.5v2M12 19.5v2M4.8 4.8l1.4 1.4M17.8 17.8l1.4 1.4M2.5 12h2M19.5 12h2M4.8 19.2l1.4-1.4M17.8 6.2l1.4-1.4" />
+            </svg>
+          </button>
+          <button id="logout-button" class="button button-ghost" type="button">退出</button>
+        </div>
+      </header>
+
+      <div class="console-layout">
+        <aside class="sidebar">
+          <div class="sidebar-top">
+            <div class="connection-card">
+              <div class="connection-icon">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <ellipse cx="12" cy="5.5" rx="7.2" ry="3" />
+                  <path d="M4.8 5.5v6c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3v-6M4.8 11.5v6c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3v-6" />
+                </svg>
+              </div>
+              <div>
+                <span class="connection-label">CONNECTED TO</span>
+                <strong>D1 DATABASE</strong>
+              </div>
+              <span class="connection-pulse"></span>
+            </div>
+
+            <div class="sidebar-section-heading">
+              <div>
+                <span class="section-label">DATABASE</span>
+                <h2>数据表</h2>
+              </div>
+              <button id="refresh-schema" class="icon-button subtle" type="button" aria-label="刷新数据表" title="刷新数据表">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 11a8.1 8.1 0 0 0-14.4-4L4 9" />
+                  <path d="M4 4v5h5M4 13a8.1 8.1 0 0 0 14.4 4L20 15" />
+                  <path d="M20 20v-5h-5" />
+                </svg>
+              </button>
+            </div>
+            <div class="search-box">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5" /><path d="m16 16 5 5" /></svg>
+              <input id="table-search" type="search" placeholder="搜索数据表" autocomplete="off" />
+            </div>
+            <div id="table-list" class="table-list"></div>
+            <div id="table-empty" class="sidebar-empty" hidden>
+              <span class="empty-symbol">∅</span>
+              <span>还没有数据表</span>
+              <small>使用 admin 密码创建第一张表</small>
+            </div>
+          </div>
+
+          <div class="sidebar-bottom">
+            <div class="role-card">
+              <div class="role-icon">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6.1v5c0 4.2 2.9 8 7 9.5 4.1-1.5 7-5.3 7-9.5v-5L12 3Z" /><path d="M9.1 12.2 11.2 14l3.8-4" /></svg>
+              </div>
+              <div>
+                <span class="connection-label">CURRENT ACCESS</span>
+                <strong id="role-label">普通访问</strong>
+              </div>
+            </div>
+            <p class="sidebar-caption">Powered by Cloudflare Workers</p>
+          </div>
+        </aside>
+
+        <main class="workspace">
+          <div class="workspace-heading">
+            <div>
+              <p class="eyebrow">QUERY WORKSPACE</p>
+              <h1>SQL 工作台</h1>
+              <p id="workspace-subtitle" class="workspace-subtitle">编写一条查询，实时查看 D1 返回结果。</p>
+            </div>
+            <div class="shortcut-hint"><kbd>⌘</kbd><span>/</span><kbd>Ctrl</kbd><span>+</span><kbd>Enter</kbd><span>执行</span></div>
+          </div>
+
+          <section class="panel editor-panel">
+            <div class="panel-heading editor-heading">
+              <div class="panel-title"><span class="panel-dot"></span><span>SQL 编辑器</span><span id="statement-mode" class="mode-tag">READY</span></div>
+              <div class="panel-actions">
+                <button id="clear-editor" class="toolbar-button text-button" type="button">清空</button>
+                <button id="run-query" class="button button-primary" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 10 7-10 7V5Z" /></svg>
+                  <span>执行查询</span>
+                  <span id="query-spinner" class="spinner" hidden></span>
+                </button>
+              </div>
+            </div>
+            <div class="editor-wrap">
+              <div class="line-numbers" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+              <textarea id="sql-editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="SQL 编辑器" placeholder="-- 从一条查询开始\nSELECT name, type\nFROM sqlite_master\nWHERE type = 'table'\nORDER BY name;"></textarea>
+            </div>
+            <div class="editor-footer">
+              <label class="params-label" for="params-input">
+                <span>绑定参数</span>
+                <small>JSON 数组，可选</small>
+              </label>
+              <input id="params-input" class="params-input" type="text" placeholder='例如 ["active", 20]' spellcheck="false" autocomplete="off" />
+              <span id="editor-hint" class="editor-hint">参数会按顺序绑定到 SQL 中的 ? 占位符。</span>
+            </div>
+          </section>
+
+          <section class="panel results-panel">
+            <div class="panel-heading results-heading">
+              <div>
+                <p class="section-label">RESULTS</p>
+                <h2>执行结果</h2>
+              </div>
+              <div class="results-actions">
+                <span id="result-summary" class="result-summary">尚未执行</span>
+                <button id="export-button" class="toolbar-button text-button" type="button" disabled>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 20h16" /></svg>
+                  导出 CSV
+                </button>
+              </div>
+            </div>
+            <div id="results-empty" class="results-empty">
+              <div class="empty-illustration"><span></span><span></span><span></span><span></span></div>
+              <strong>结果会出现在这里</strong>
+              <span>执行 SQL 后，返回的数据将以表格形式展示。</span>
+            </div>
+            <div id="command-result" class="command-result" hidden>
+              <div class="command-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.3 4.3L19 6.6" /></svg></div>
+              <div><strong>语句执行成功</strong><span id="command-summary">已完成写操作。</span></div>
+            </div>
+            <div id="results-table-wrap" class="results-table-wrap" hidden>
+              <table id="results-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="lower-grid">
+            <section class="panel history-panel">
+              <div class="panel-heading compact-heading">
+                <div><p class="section-label">RECENT</p><h2>查询历史</h2></div>
+                <button id="clear-history" class="toolbar-button text-button" type="button">清除</button>
+              </div>
+              <div id="history-list" class="history-list"></div>
+              <div id="history-empty" class="small-empty">执行过的 SQL 会显示在这里。</div>
+            </section>
+            <section class="panel inspector-panel">
+              <div class="panel-heading compact-heading">
+                <div><p class="section-label">INSPECTOR</p><h2 id="inspector-title">表结构</h2></div>
+                <span class="inspector-badge">SCHEMA</span>
+              </div>
+              <div id="column-list" class="column-list">
+                <div class="small-empty">从左侧选择一张表查看列定义。</div>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
