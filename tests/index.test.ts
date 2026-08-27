@@ -113,7 +113,117 @@ describe("HTTP API", () => {
       runtime,
       {} as ExecutionContext,
     );
-    expect(adminDrop.status).toBe(200);
-    expect(await json(adminDrop)).toMatchObject({ ok: true, type: "command" });
+   expect(adminDrop.status).toBe(200);
+   expect(await json(adminDrop)).toMatchObject({ ok: true, type: "command" });
+
+    const adminAlter = await fetchWorker(
+      new Request("https://cf-sql.test/api/sql", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ sql: "ALTER TABLE users ADD COLUMN age INTEGER" }),
+      }),
+      runtime,
+      {} as ExecutionContext,
+    );
+   expect(adminAlter.status).toBe(200);
+   expect(await json(adminAlter)).toMatchObject({ ok: true, type: "command" });
+ });
+
+  it("supports exporting table records via HTTP POST API", async () => {
+    const schema = vi.fn().mockResolvedValue({
+      results: [
+        { cid: 0, name: "id", type: "INTEGER", notnull: 1, dflt_value: null, pk: 1 },
+        { cid: 1, name: "name", type: "TEXT", notnull: 1, dflt_value: null, pk: 0 },
+      ],
+    });
+    const rows = vi.fn().mockResolvedValue({
+      results: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }],
+    });
+    const prepare = vi.fn((sql: string) => {
+      if (sql.startsWith("SELECT cid, name, type")) {
+        return { all: schema };
+      }
+      return { all: rows };
+    });
+    const runtime = {
+      DB: { prepare } as unknown as Env["DB"],
+      ASSETS: { fetch: vi.fn(async () => new Response("console")) } as unknown as Env["ASSETS"],
+      SQL_NORMAL_PASSWORD: "normal-password",
+      SQL_ADMIN_PASSWORD: "admin-password",
+      AUTH_SECRET: "a-secret-that-is-long-enough-for-handler-tests-123456",
+    };
+    const login = await fetchWorker(
+      new Request("https://cf-sql.test/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "normal-password" }),
+      }),
+      runtime,
+      {} as ExecutionContext,
+    );
+    const token = (await json(login)).token;
+
+    const exportRes = await fetchWorker(
+      new Request("https://cf-sql.test/api/records/export", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ table: "users" }),
+      }),
+      runtime,
+      {} as ExecutionContext,
+    );
+    expect(exportRes.status).toBe(200);
+    const exportBody = await json(exportRes);
+    expect(exportBody).toMatchObject({ ok: true, type: "rows", rowCount: 2 });
+    expect(exportBody.rows).toEqual([{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }]);
+  });
+
+  it("supports importing records into a table via HTTP POST API", async () => {
+    const schema = vi.fn().mockResolvedValue({
+      results: [
+        { cid: 0, name: "id", type: "INTEGER", notnull: 1, dflt_value: null, pk: 1 },
+        { cid: 1, name: "name", type: "TEXT", notnull: 1, dflt_value: null, pk: 0 },
+      ],
+    });
+    const run = vi.fn().mockResolvedValue({ meta: { changes: 1, last_row_id: 10 } });
+    const bind = vi.fn().mockReturnValue({ run });
+    const batch = vi.fn().mockResolvedValue([]);
+    const prepare = vi.fn((sql: string) => {
+      if (sql.startsWith("SELECT cid, name, type")) {
+        return { all: schema };
+      }
+      return { bind, run };
+    });
+    const runtime = {
+      DB: { prepare, batch } as unknown as Env["DB"],
+      ASSETS: { fetch: vi.fn(async () => new Response("console")) } as unknown as Env["ASSETS"],
+      SQL_NORMAL_PASSWORD: "normal-password",
+      SQL_ADMIN_PASSWORD: "admin-password",
+      AUTH_SECRET: "a-secret-that-is-long-enough-for-handler-tests-123456",
+    };
+    const login = await fetchWorker(
+      new Request("https://cf-sql.test/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "normal-password" }),
+      }),
+      runtime,
+      {} as ExecutionContext,
+    );
+    const token = (await json(login)).token;
+
+    const importRes = await fetchWorker(
+      new Request("https://cf-sql.test/api/records/import", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ table: "users", records: [{ name: "Charlie" }, { name: "David" }] }),
+      }),
+      runtime,
+      {} as ExecutionContext,
+    );
+    expect(importRes.status).toBe(200);
+    const importBody = await json(importRes);
+    expect(importBody).toMatchObject({ ok: true, count: 2 });
+    expect(batch).toHaveBeenCalled();
   });
 });

@@ -5,11 +5,15 @@
 ## 功能
 
 - `POST /api/auth/login`：使用普通密码或 admin 密码登录，签发 8 小时 HMAC 会话令牌。
-- `POST /api/sql`：执行单条 SQL；所有参数通过 D1 Prepared Statement 绑定。
+- `POST /api/sql`：执行单条 SQL；普通用户支持查询、记录 CRUD 与建表，admin 用户开放全部 SQL 权限（包含删表、改表、创建索引等结构与管理操作）。
 - `POST /api/schema`：读取数据表和列定义，供控制台浏览数据库结构。
+- 可视化操作接口：`/api/tables/list`、`/api/tables/create`、`/api/tables/drop`，以及 `/api/records/list`、`/api/records/create`、`/api/records/update`、`/api/records/delete`。
+- 导入导出接口：`/api/records/export`（全量数据导出）、`/api/records/import`（批量导入并参数化写入，支持 CSV/JSON 格式）。
 - 页面会话保存在 `sessionStorage`，不会把密码写入浏览器存储。
-- 普通密码可以执行查询和记录级 CRUD（`SELECT`、`INSERT`、`UPDATE`、`DELETE`、`REPLACE`）。
-- admin 密码可以执行删表、建表、改表等结构操作，请把它当作数据库管理员凭据保管。
+- 普通密码可以执行查询、记录级 CRUD（`SELECT`、`INSERT`、`UPDATE`、`DELETE`、`REPLACE`），并可通过可视化页面新建数据表。
+- admin 密码拥有全部权限（可执行任意支持的 SQL 语句与结构修改）。
+
+页面默认使用上述可视化接口，不需要用户编写 SQL；`/api/sql` 保留给需要程序化调用的客户端。
 
 ## 本地运行
 
@@ -28,7 +32,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-启动后打开 Wrangler 输出的地址即可。首次进入控制台可用 admin 密码执行建表语句；项目没有预设业务表。
+启动后打开 Wrangler 输出的地址即可。本地开发默认使用本地 D1，不会因为远程 D1 网络问题卡住页面；部署 Worker 后会使用 `wrangler.jsonc` 绑定的真实 D1。首次进入控制台可用任一访问密码执行建表操作；项目没有预设业务表。
 
 ## 部署
 
@@ -62,7 +66,7 @@ curl -X POST https://your-domain.example/api/sql \
   -d '{"sql":"SELECT * FROM users WHERE id = ?","params":[1]}'
 ```
 
-删表、建表等结构操作必须使用 admin 密码换取的令牌：
+通过 `/api/sql` 执行删表必须使用 admin 密码换取的令牌；普通和 admin 都可以执行建表及记录操作：
 
 ```bash
 curl -X POST https://your-domain.example/api/sql \

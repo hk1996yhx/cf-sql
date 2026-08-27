@@ -7,10 +7,18 @@ import {
   type AccessRole,
 } from "./auth";
 import {
+  createRecord,
+  createTable,
+  deleteRecord,
+  dropTable,
+  exportRecords,
   executeSql,
+  importRecords,
+  listRecords,
   readSchema,
   SqlExecutionError,
   SqlValidationError,
+  updateRecord,
 } from "./sql";
 
 export interface Env {
@@ -53,6 +61,24 @@ function jsonResponse(data: unknown, status = 200, headers: Record<string, strin
       "x-frame-options": "DENY",
       ...headers,
     },
+  });
+}
+
+/** 复制静态资源响应后再添加安全头，兼容 Workers 返回的 immutable Headers。 */
+export function addAssetSecurityHeaders(response: Response, requestId?: string): Response {
+  const headers = new Headers(response.headers);
+  if (requestId) headers.set("x-request-id", requestId);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "no-referrer");
+  headers.set("x-frame-options", "DENY");
+  headers.set(
+    "content-security-policy",
+    "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
   });
 }
 
@@ -129,16 +155,105 @@ async function handleSchema(request: Request, env: Env): Promise<Response> {
   return jsonResponse({ ok: true, ...result });
 }
 
+async function handleRecordList(request: Request, env: Env): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await listRecords(env.DB, body.table, body.limit, body.offset);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleRecordExport(request: Request, env: Env): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await exportRecords(env.DB, body.table);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleRecordImport(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await importRecords(env.DB, body.table, body.records, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleRecordCreate(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await createRecord(env.DB, body.table, body.values, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleRecordUpdate(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await updateRecord(env.DB, body.table, body.primaryKey, body.primaryKeyValue, body.values, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleRecordDelete(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await deleteRecord(env.DB, body.table, body.primaryKey, body.primaryKeyValue, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleTableCreate(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await createTable(env.DB, { name: body.name, columns: body.columns }, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
+async function handleTableDrop(request: Request, env: Env, role: AccessRole): Promise<Response> {
+  requireJsonMethod(request);
+  const body = objectBody(await readJson(request));
+  const result = await dropTable(env.DB, body.table, role);
+  return jsonResponse({ ok: true, ...result });
+}
+
 async function routeApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (pathname === "/api/auth/login") {
     return handleLogin(request, env);
   }
-  if (pathname === "/api/sql" || pathname === "/api/schema") {
+  const protectedPaths = new Set([
+    "/api/sql",
+    "/api/schema",
+    "/api/tables/list",
+    "/api/tables/create",
+    "/api/tables/drop",
+    "/api/records/list",
+    "/api/records/export",
+    "/api/records/import",
+    "/api/records/create",
+    "/api/records/update",
+    "/api/records/delete",
+  ]);
+  if (protectedPaths.has(pathname)) {
     const session = await requireSession(request, env);
-    return pathname === "/api/sql"
-      ? handleSql(request, env, session.role)
-      : handleSchema(request, env);
+    switch (pathname) {
+      case "/api/sql":
+        return handleSql(request, env, session.role);
+      case "/api/schema":
+      case "/api/tables/list":
+        return handleSchema(request, env);
+      case "/api/records/list":
+        return handleRecordList(request, env);
+      case "/api/records/export":
+        return handleRecordExport(request, env);
+      case "/api/records/import":
+        return handleRecordImport(request, env, session.role);
+      case "/api/records/create":
+        return handleRecordCreate(request, env, session.role);
+      case "/api/records/update":
+        return handleRecordUpdate(request, env, session.role);
+      case "/api/records/delete":
+        return handleRecordDelete(request, env, session.role);
+      case "/api/tables/create":
+        return handleTableCreate(request, env, session.role);
+      case "/api/tables/drop":
+        return handleTableDrop(request, env, session.role);
+    }
   }
   throw new HttpError(404, "NOT_FOUND", "接口不存在");
 }
@@ -191,16 +306,7 @@ const worker: ExportedHandler<Env> = {
       if (!env.ASSETS) {
         throw new ConfigurationError("ASSETS 未配置");
       }
-      const response = await env.ASSETS.fetch(request);
-      response.headers.set("x-request-id", requestId);
-      response.headers.set("x-content-type-options", "nosniff");
-      response.headers.set("referrer-policy", "no-referrer");
-      response.headers.set("x-frame-options", "DENY");
-      response.headers.set(
-        "content-security-policy",
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-      );
-      return response;
+      return addAssetSecurityHeaders(await env.ASSETS.fetch(request), requestId);
     } catch (error) {
       console.error("[cf-sql] request failed", { requestId, method: request.method, url: request.url, error });
       const response = handleError(error, requestId);
