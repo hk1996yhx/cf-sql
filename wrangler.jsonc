@@ -12,7 +12,7 @@
 		{
 			"binding": "DB",
 			"database_name": "xxxxxxxxxxxxxxx",
-			"database_id": "xxxxxxxxxxxxxxxxxxxxxxxxx",
+			"database_id": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
 			"migrations_dir": "migrations"
 		}
 	]
