@@ -345,13 +345,14 @@ function validateStructuredIdentifier(value: unknown, label: string): string {
 }
 
 export function isInternalTableName(name: string): boolean {
-  const upper = name.toUpperCase();
+  const upper = (name || "").toUpperCase();
   return (
     upper.startsWith("SQLITE_") ||
-    upper.startsWith("_CF_") ||
+    upper.startsWith("_CF") ||
     upper.startsWith("__CF_") ||
-    upper.startsWith("__MINIFLARE_") ||
-    upper.startsWith("D1_")
+    upper.startsWith("__MINIFLARE") ||
+    upper.startsWith("D1_") ||
+    upper.startsWith("_D1_")
   );
 }
 
@@ -624,7 +625,8 @@ export async function readSchema(database: D1Database, table?: string): Promise<
           "SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name NOT LIKE '__cf_%' AND name NOT LIKE '__miniflare_%' AND name NOT LIKE 'd1_%' ORDER BY type, name",
         )
         .all<SchemaTable>();
-      return { tables: (result.results ?? []) as SchemaTable[] };
+      const rows = (result.results ?? []) as SchemaTable[];
+      return { tables: rows.filter((item) => item && item.name && !isInternalTableName(item.name)) };
     }
 
     const name = validateUserTableName(table, "表名");

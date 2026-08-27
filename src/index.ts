@@ -68,6 +68,7 @@ function jsonResponse(data: unknown, status = 200, headers: Record<string, strin
 export function addAssetSecurityHeaders(response: Response, requestId?: string): Response {
   const headers = new Headers(response.headers);
   if (requestId) headers.set("x-request-id", requestId);
+  headers.set("cache-control", "no-cache, must-revalidate");
   headers.set("x-content-type-options", "nosniff");
   headers.set("referrer-policy", "no-referrer");
   headers.set("x-frame-options", "DENY");

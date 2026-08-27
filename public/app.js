@@ -285,10 +285,11 @@ function isInternalTableName(name) {
   const upper = String(name || "").toUpperCase();
   return (
     upper.startsWith("SQLITE_") ||
-    upper.startsWith("_CF_") ||
+    upper.startsWith("_CF") ||
     upper.startsWith("__CF_") ||
-    upper.startsWith("__MINIFLARE_") ||
-    upper.startsWith("D1_")
+    upper.startsWith("__MINIFLARE") ||
+    upper.startsWith("D1_") ||
+    upper.startsWith("_D1_")
   );
 }
 
