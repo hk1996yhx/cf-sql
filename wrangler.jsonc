@@ -11,7 +11,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "cf-sql",
+			"database_name": "xxxxxx",
 			"database_id": "DATABASE_ID_INJECTED_VIA_ENV",
 			"migrations_dir": "migrations"
 		}
