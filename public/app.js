@@ -321,6 +321,7 @@ function renderTableList() {
     icon.className = "table-kind";
     icon.textContent = table.type === "view" ? "◈" : "▦";
     const name = document.createElement("span");
+    name.className = "table-name";
     name.textContent = table.name;
     item.append(icon, name);
     item.addEventListener("click", () => selectTable(table.name));
