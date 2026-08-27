@@ -7,5 +7,13 @@
 		"directory": "./public",
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application"
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "cf-sql",
+			"database_id": "DATABASE_ID_INJECTED_VIA_ENV",
+			"migrations_dir": "migrations"
+		}
+	]
 }
