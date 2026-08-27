@@ -344,11 +344,20 @@ function validateStructuredIdentifier(value: unknown, label: string): string {
   return value;
 }
 
-const INTERNAL_TABLE_NAMES = new Set(["_CF_METADATA"]);
+export function isInternalTableName(name: string): boolean {
+  const upper = name.toUpperCase();
+  return (
+    upper.startsWith("SQLITE_") ||
+    upper.startsWith("_CF_") ||
+    upper.startsWith("__CF_") ||
+    upper.startsWith("__MINIFLARE_") ||
+    upper.startsWith("D1_")
+  );
+}
 
 function validateUserTableName(value: unknown, label: string): string {
   const name = validateStructuredIdentifier(value, label);
-  if (INTERNAL_TABLE_NAMES.has(name.toUpperCase())) {
+  if (isInternalTableName(name)) {
     throw new SqlValidationError("不能操作 D1 内部系统表");
   }
   return name;
@@ -611,8 +620,8 @@ export async function readSchema(database: D1Database, table?: string): Promise<
   try {
     if (table === undefined) {
       const result = await database
-      .prepare(
-          "SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name <> '_cf_METADATA' ORDER BY type, name",
+        .prepare(
+          "SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name NOT LIKE '__cf_%' AND name NOT LIKE '__miniflare_%' AND name NOT LIKE 'd1_%' ORDER BY type, name",
         )
         .all<SchemaTable>();
       return { tables: (result.results ?? []) as SchemaTable[] };

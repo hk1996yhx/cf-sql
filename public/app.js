@@ -281,6 +281,17 @@ function escapeIdentifier(identifier) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
+function isInternalTableName(name) {
+  const upper = String(name || "").toUpperCase();
+  return (
+    upper.startsWith("SQLITE_") ||
+    upper.startsWith("_CF_") ||
+    upper.startsWith("__CF_") ||
+    upper.startsWith("__MINIFLARE_") ||
+    upper.startsWith("D1_")
+  );
+}
+
 function getPrimaryKey() {
   const keys = state.columns.filter((column) => column.pk > 0);
   return keys.length === 1 ? keys[0] : null;
@@ -320,7 +331,8 @@ async function loadTables() {
   elements.refreshSchema.disabled = true;
   try {
     const data = await api("/api/tables/list", { method: "POST", body: "{}" });
-    state.tables = Array.isArray(data.tables) ? data.tables : [];
+    const rawTables = Array.isArray(data.tables) ? data.tables : [];
+    state.tables = rawTables.filter((table) => !isInternalTableName(table.name));
     renderTableList();
     if (state.tables.length === 0) {
       state.activeTable = null;

@@ -23,9 +23,11 @@ describe("visual CRUD API primitives", () => {
     const database = { prepare } as unknown as D1Database;
 
     await expect(readSchema(database)).resolves.toEqual({ tables: [] });
-    expect(prepare).toHaveBeenCalledWith("SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name <> '_cf_METADATA' ORDER BY type, name");
+    expect(prepare).toHaveBeenCalledWith("SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name NOT LIKE '__cf_%' AND name NOT LIKE '__miniflare_%' AND name NOT LIKE 'd1_%' ORDER BY type, name");
     await expect(readSchema(database, "_cf_METADATA")).rejects.toThrow("内部系统表");
+    await expect(readSchema(database, "_cf_KV")).rejects.toThrow("内部系统表");
     await expect(dropTable(database, "_cf_METADATA", "admin")).rejects.toThrow("内部系统表");
+    await expect(dropTable(database, "_cf_KV", "admin")).rejects.toThrow("内部系统表");
   });
 
   it("reads table columns through D1's supported pragma table-valued function", async () => {
