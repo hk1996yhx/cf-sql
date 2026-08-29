@@ -714,8 +714,24 @@ async function dropActiveTable() {
   }
 }
 
+function updateThemeIcon() {
+  const isLight = document.body.dataset.theme === "light";
+  if (elements.themeToggle) {
+    elements.themeToggle.title = isLight ? "切换为深色模式" : "切换为浅色模式";
+    elements.themeToggle.setAttribute("aria-label", isLight ? "切换为深色模式" : "切换为浅色模式");
+    elements.themeToggle.innerHTML = isLight
+      ? '<svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
+      : '<svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v2M12 19.5v2M4.8 4.8l1.4 1.4M17.8 17.8l1.4 1.4M2.5 12h2M19.5 12h2M4.8 19.2l1.4-1.4M17.8 6.2l1.4-1.4" /></svg>';
+  }
+}
+
 function applyTheme() {
-  if (localStorage.getItem(THEME_KEY) === "light") document.body.dataset.theme = "light";
+  if (localStorage.getItem(THEME_KEY) === "light") {
+    document.body.dataset.theme = "light";
+  } else {
+    delete document.body.dataset.theme;
+  }
+  updateThemeIcon();
 }
 
 function downloadBlob(blob, filename) {
@@ -1002,6 +1018,7 @@ function toggleTheme() {
     document.body.dataset.theme = "light";
     localStorage.setItem(THEME_KEY, "light");
   }
+  updateThemeIcon();
 }
 
 elements.loginForm.addEventListener("submit", async (event) => {
